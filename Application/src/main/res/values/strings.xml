@@ -37,5 +37,11 @@
     <string name="secure_connect">Connect a device - Secure</string>
     <string name="insecure_connect">Connect a device - Insecure</string>
     <string name="discoverable">Make discoverable</string>
+    <string name="permission_title">Permission needed</string>
+    <string name="permission_reason_text">permission</string>
+    <string name="permission_grant_text">permission needed</string>
+    <string name="exit_app_text">exit app</string>
+    <string name="permission_deny_text">denied</string>
+    <string name="go_settings_text">go setting</string>
 
 </resources>

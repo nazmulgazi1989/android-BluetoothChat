@@ -16,17 +16,32 @@
 
 package com.example.android.bluetoothchat;
 
+import android.Manifest;
+import android.annotation.TargetApi;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.ContactsContract;
+import android.provider.Settings;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
+import android.util.Base64;
+import android.util.Base64OutputStream;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -38,11 +53,42 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.RequestOptions;
 import com.example.android.common.logger.Log;
+import com.example.android.common.logger.Person;
+import com.example.android.util.Constant;
+import com.example.android.util.PermissionHelper;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.RandomAccessFile;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.zip.Deflater;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+import java.util.zip.Inflater;
 
 /**
  * This fragment controls Bluetooth to communicate with other devices.
@@ -85,6 +131,12 @@ public class BluetoothChatFragment extends Fragment {
      * Member object for the chat services
      */
     private BluetoothChatService mChatService = null;
+    private PermissionHelper permissionHelper;
+    private String[] appPermissions = {Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.CAMERA};
+    private String sCameraPhotoPath;
+    int size = 0, index = 0, maxSize =0;
+    private byte[] byteMessage,byteTargetArray;
+    ImageView ivImageView;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -92,6 +144,7 @@ public class BluetoothChatFragment extends Fragment {
         setHasOptionsMenu(true);
         // Get local Bluetooth adapter
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        permissionHelper = new PermissionHelper(getActivity(), getActivity());
 
         // If the adapter is null, then Bluetooth is not supported
         if (mBluetoothAdapter == null) {
@@ -151,6 +204,7 @@ public class BluetoothChatFragment extends Fragment {
         mConversationView = (ListView) view.findViewById(R.id.in);
         mOutEditText = (EditText) view.findViewById(R.id.edit_text_out);
         mSendButton = (Button) view.findViewById(R.id.button_send);
+        ivImageView = view.findViewById(R.id.ivImageView);
     }
 
     /**
@@ -171,13 +225,72 @@ public class BluetoothChatFragment extends Fragment {
         mSendButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 // Send a message using content of the edit text widget
-                View view = getView();
-                if (null != view) {
-                    TextView textView = (TextView) view.findViewById(R.id.edit_text_out);
-                    String message = textView.getText().toString();
-                    sendMessage(message);
+//                View view = getView();
+//                if (null != view) {
+//                    TextView textView = (TextView) view.findViewById(R.id.edit_text_out);
+//                    String message = textView.getText().toString();
+//                    sendMessage(message);
+//                }
+
+//                if (permissionHelper.isPermissionsGranted(appPermissions)) {
+//                    sCameraPhotoPath = permissionHelper.browseForImage();
+//                }
+
+//                //image sending
+//                File  file = new File(
+//                        Environment.getExternalStoragePublicDirectory(
+//                                Environment.DIRECTORY_PICTURES), "me.jpg");
+//
+//                // If there is not data, then we may have taken a photo
+//                try {
+//                    Glide.with(getActivity()).load(readFile(file)).into(ivImageView);
+//                    sendMessage(readFile(file));
+//                } catch (Exception e) {
+//                    e.printStackTrace();
+//                }
+
+     //text sending successfully handled
+                List<Person> personList = new ArrayList<>();
+                for(int i =0 ; i< 10; i++){
+                    Person person = new Person();
+                    person.setId(UUID.randomUUID().toString());
+                    person.setDOB("10.09.3400");
+                    person.setEduLevel("School");
+                    person.setEthnicity(UUID.randomUUID().toString());
+                    person.setFname("fsadfas" + i);
+                    person.setSurname("afsadf" + i);
+                    personList.add(person);
                 }
-            }
+                sendMessage(new Gson().toJson(personList).getBytes());
+
+
+//                InputStream inputStream = null;//You can get an inputStream using any IO API
+//                try {
+//                    inputStream = new FileInputStream(file.getAbsolutePath());
+//                    byte[] buffer = new byte[8192];
+//                    int bytesRead;
+//                    ByteArrayOutputStream output = new ByteArrayOutputStream();
+//
+//                    Base64OutputStream output64 = new Base64OutputStream(output, Base64.DEFAULT);
+//                    try {
+//                        while ((bytesRead = inputStream.read(buffer)) != -1) {
+//                            output64.write(buffer, 0, bytesRead);
+//                        }
+//                        output64.close();
+//
+//                        sendMessage(output.toString());
+//                        Log.d("ttt",output.toString());
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
+//
+//                } catch (FileNotFoundException e) {
+//                    e.printStackTrace();
+//                }
+
+
+
+        }
         });
 
         // Initialize the BluetoothChatService to perform bluetooth connections
@@ -185,6 +298,92 @@ public class BluetoothChatFragment extends Fragment {
 
         // Initialize the buffer for outgoing messages
         mOutStringBuffer = new StringBuffer("");
+    }
+
+    public static byte[] readFile(String file) throws IOException {
+        return readFile(new File(file));
+    }
+
+    public static byte[] readFile(File file) throws IOException {
+        // Open file
+        RandomAccessFile f = new RandomAccessFile(file, "r");
+        try {
+            // Get and check length
+            long longlength = f.length();
+            int length = (int) longlength;
+            if (length != longlength)
+                throw new IOException("File size >= 2 GB");
+            // Read file and return data
+            byte[] data = new byte[length];
+            f.readFully(data);
+
+            return Base64.encode(data,Base64.DEFAULT);
+        } finally {
+            f.close();
+        }
+    }
+//    public static byte[] compress(String text) throws Exception{
+//        byte[] output = new byte;
+//        Deflater compresser = new Deflater();
+//        compresser.setInput(text.getBytes("UTF-8"));
+//        compresser.finish();
+//        int compressedDataLength = compresser.deflate(output);
+//        byte[] dest = new byte[compressedDataLength];
+//        System.arraycopy(output, 0, dest, 0, compressedDataLength);
+//        return dest;
+//    }
+//
+//    public static String decompress(byte[] bytes) throws Exception{
+//        Inflater decompresser = new Inflater();
+//        decompresser.setInput(bytes, 0, bytes.length);
+//        byte[] result = new byte[bytes.length *10];
+//        int resultLength = decompresser.inflate(result);
+//        decompresser.end();
+//
+//        // Decode the bytes into a String
+//        String outputString = new String(result, 0, resultLength, "UTF-8");
+//        return outputString;
+//    }
+@TargetApi(Build.VERSION_CODES.KITKAT)
+private static String ungzip(byte[] bytes) throws Exception{
+    InputStreamReader isr = new InputStreamReader(new GZIPInputStream(new ByteArrayInputStream(bytes)), StandardCharsets.UTF_8);
+    StringWriter sw = new StringWriter();
+    char[] chars = new char[1024];
+    for (int len; (len = isr.read(chars)) > 0; ) {
+        sw.write(chars, 0, len);
+    }
+    return sw.toString();
+}
+
+    @TargetApi(Build.VERSION_CODES.KITKAT)
+    private static byte[] gzip(String s) throws Exception{
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        GZIPOutputStream gzip = new GZIPOutputStream(bos);
+        OutputStreamWriter osw = new OutputStreamWriter(gzip, StandardCharsets.UTF_8);
+        osw.write(s);
+        osw.close();
+        return bos.toByteArray();
+    }
+    public static byte[] compress(byte [] bytarray) throws Exception{
+        Deflater compresser = new Deflater();
+        compresser.setInput(bytarray);
+        compresser.finish();
+        int compressedDataLength = compresser.deflate(bytarray);
+        byte[] dest = new byte[compressedDataLength];
+        System.arraycopy(bytarray, 0, dest, 0, compressedDataLength);
+        return dest;
+    }
+
+    public static String decompress(byte[] bytes) throws Exception{
+        Inflater decompresser = new Inflater();
+        decompresser.setInput(bytes, 0, bytes.length);
+        byte[] result = new byte[bytes.length *10];
+        int resultLength = decompresser.inflate(result);
+        decompresser.end();
+
+        // Decode the bytes into a String
+        String outputString = new String(result, 0, resultLength, "UTF-8");
+        return outputString;
     }
 
     /**
@@ -222,6 +421,36 @@ public class BluetoothChatFragment extends Fragment {
             mOutEditText.setText(mOutStringBuffer);
         }
     }
+
+    /**
+     * Sends a message.
+     *
+     * @param message A string of text to send.
+     */
+    private void sendMessage(byte[] message) {
+        // Check that we're actually connected before trying anything
+        if (mChatService.getState() != BluetoothChatService.STATE_CONNECTED) {
+            Toast.makeText(getActivity(), R.string.not_connected, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Check that there's actually something to send
+        if (message.length > 0) {
+            // Get the message bytes and tell the BluetoothChatService to write
+            maxSize = message.length;
+            size = message.length/980;
+            byteMessage = message;
+            byte [] chank = new byte[980];
+            System.arraycopy(Constant.longToBytes(maxSize),0,chank,1,Constant.longToBytes(maxSize).length);
+            chank[0] = (byte)3;
+            mChatService.write(chank);
+
+            // Reset out string buffer to zero and clear the edit text field
+            mOutStringBuffer.setLength(0);
+            mOutEditText.setText(mOutStringBuffer);
+        }
+    }
+
 
     /**
      * The action listener for the EditText widget, to listen for the return key
@@ -303,9 +532,63 @@ public class BluetoothChatFragment extends Fragment {
                     break;
                 case Constants.MESSAGE_READ:
                     byte[] readBuf = (byte[]) msg.obj;
-                    // construct a string from the valid bytes in the buffer
-                    String readMessage = new String(readBuf, 0, msg.arg1);
-                    mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + readMessage);
+                    Log.d("Umar",String.valueOf(readBuf.length));
+                    if(readBuf[0] == 1){
+                        String readMessage = new String(readBuf, 0, msg.arg1);
+                        Log.d("Umar",readMessage);
+                        if(index <maxSize){
+                            byte [] chank = new byte[980];
+                            System.arraycopy(byteMessage,index,chank,1,Math.min(maxSize-index,979));
+                            chank[0] = (byte)0;
+                            mChatService.write(chank);
+                            index+=979;
+                        }
+                    }else if(readBuf[0] == 0){
+                        byte [] chank = new byte[980];
+                        chank[0] = (byte)1;
+                        System.arraycopy("Success".getBytes(),0,chank,1,"Success".getBytes().length);
+
+                        if(index < maxSize){
+                         System.arraycopy(readBuf,1,byteTargetArray,index,Math.min(979,maxSize-index));
+                         index+=979;
+                         mChatService.write(chank);
+                        }
+
+                        if(index > maxSize) {
+//                            String readMessage = new String(readBuf, 0, msg.arg1);
+//                            mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + readMessage);
+//                            Log.d("Umar",String.valueOf(byteTargetArray.length) + " inside glide");
+//                            mConversationView.setVisibility(View.GONE);
+//                            Log.d("Umar",String.valueOf(byteTargetArray.length) + " inside glide");
+//                            Glide.with(getActivity()).load(Base64.decode(byteTargetArray,Base64.DEFAULT)).apply(new RequestOptions().override(600, 200)).into(ivImageView);
+
+                            //text successfully handled
+                            Gson gson = new Gson();
+                            List<Person> people = gson.fromJson(new String(byteTargetArray, 0, byteTargetArray.length), new TypeToken<List<Person>>(){}.getType());
+                            for(Person person : people){
+                                mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + gson.toJson(person));
+                            }
+                        }
+
+                                // construct a string from the valid bytes in the buffer
+                        String readMessage = new String(readBuf, 0, msg.arg1);
+                        mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + readMessage);
+                    }else if(readBuf[0] == 3){
+                        byte[] array = new byte[4];
+                        System.arraycopy(readBuf,1,array,0,array.length);
+                        Log.d("Umar", Arrays.toString(array));
+                        maxSize = Constant.bytesToLong(array);
+                        Log.d("Umar",String.valueOf(maxSize));
+                        byteTargetArray = new byte[maxSize];
+                        byte [] chank = new byte[512];
+                        chank[0] = (byte)1;
+                        System.arraycopy("Success".getBytes(),0,chank,1,"Success".getBytes().length);
+                        mChatService.write(chank);
+                        // construct a string from the valid bytes in the buffer
+                        String readMessage = new String(readBuf, 0, msg.arg1);
+                        mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + readMessage);
+
+                    }
                     break;
                 case Constants.MESSAGE_DEVICE_NAME:
                     // save the connected device's name
@@ -325,7 +608,133 @@ public class BluetoothChatFragment extends Fragment {
         }
     };
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == Constant.PERMISSION_REQUEST_CODE) {
+            HashMap<String, Integer> permissionResults = new HashMap<>();
+            int deniedCount = 0;
+
+            // Gather permission grant results
+            for (int i = 0; i < grantResults.length; i++) {
+                // Add only permissions which are denied
+                if (grantResults[i] == PackageManager.PERMISSION_DENIED) {
+                    permissionResults.put(permissions[i], grantResults[i]);
+                    deniedCount++;
+                }
+            }
+
+            // Check if all permissions are granted
+            if (deniedCount == 0) {
+                // Proceed ahead with the app
+                firstCameraPermission();
+            }
+            // Atleast one or all permissions are denied
+            else {
+                for (Map.Entry<String, Integer> entry : permissionResults.entrySet()) {
+                    String permName = entry.getKey();
+
+                    // permission is denied (this is the first time, when "never ask again" is not checked)
+                    // so ask again explaining the usage of permission
+                    // shouldShowRequestPermissionRationale will return true
+                    if (ActivityCompat.shouldShowRequestPermissionRationale(getActivity(), permName)) {
+                        // Show dialog of explanation
+                        permissionHelper.showDialog(getResources().getString(R.string.permission_title),
+                                getResources().getString(R.string.permission_reason_text),
+                                getResources().getString(R.string.permission_grant_text),
+                                new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialogInterface, int i) {
+                                        dialogInterface.dismiss();
+                                        permissionHelper.isPermissionsGranted(appPermissions);
+                                    }
+                                },
+                                getResources().getString(R.string.exit_app_text),
+                                new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialogInterface, int i) {
+                                        dialogInterface.dismiss();
+                                        getActivity().finish();
+                                    }
+                                });
+                    }
+                    //permission is denied (and never ask again is  checked)
+                    //shouldShowRequestPermissionRationale will return false
+                    else {
+                        // Ask user to go to settings and manually allow permissions
+                        permissionHelper.showDialog(getResources().getString(R.string.permission_title),
+                                getResources().getString(R.string.permission_deny_text),
+                                getResources().getString(R.string.go_settings_text),
+                                new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialogInterface, int i) {
+                                        dialogInterface.dismiss();
+                                        // Go to app settings
+                                        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                                Uri.fromParts("package", getActivity().getPackageName(), null));
+                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                        startActivity(intent);
+                                        getActivity().finish();
+                                    }
+                                },
+                                getResources().getString(R.string.exit_app_text), new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialogInterface, int i) {
+                                        dialogInterface.dismiss();
+                                        getActivity().finish();
+                                    }
+                                });
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    //camera and profile pic functions
+    private void firstCameraPermission() {
+        sCameraPhotoPath = permissionHelper.browseForImage();
+    }
+
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == Activity.RESULT_OK) {
+//            if (data == null) {
+//                File  file = new File(
+//                        Environment.getExternalStoragePublicDirectory(
+//                                Environment.DIRECTORY_PICTURES)+"/Screenshots", "Test.png");
+//
+//                // If there is not data, then we may have taken a photo
+//
+//
+//                    InputStream inputStream = null;//You can get an inputStream using any IO API
+//                    try {
+//                        inputStream = new FileInputStream(file.getAbsolutePath());
+//                        byte[] buffer = new byte[8192];
+//                        int bytesRead;
+//                        ByteArrayOutputStream output = new ByteArrayOutputStream();
+//                        Base64OutputStream output64 = new Base64OutputStream(output, Base64.DEFAULT);
+//                        try {
+//                            while ((bytesRead = inputStream.read(buffer)) != -1) {
+//                                output64.write(buffer, 0, bytesRead);
+//                            }
+//                            output64.close();
+//
+//                            sendMessage(output.toString());
+//                        } catch (IOException e) {
+//                            e.printStackTrace();
+//                        }
+//
+//                    } catch (FileNotFoundException e) {
+//                        e.printStackTrace();
+//                    }
+//
+//                }
+//            } else {
+//                String dataString = data.getDataString();
+//                if (dataString != null) {
+//                    permissionHelper.pickedFromGallery(resultCode, data, 81, 81);
+//                }
+           }
+
         switch (requestCode) {
             case REQUEST_CONNECT_DEVICE_SECURE:
                 // When DeviceListActivity returns with a device to connect
